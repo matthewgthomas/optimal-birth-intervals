@@ -40,13 +40,13 @@ To perform several runs of the model at once, enter a series of mortality parame
 Taiwan n n n 0.226529 1.57375 0.01 0.000841 0.085
 Taiwan h h h 0.226529 1.57375 0.01 0.000841 0.085
 
-Then run the model as follows: ibi.exe <name of parameters file>
+Then run the model as follows: ibi.exe [name of parameters file]
 
 Output files
 ============
-Output files will be named in the form <type>-<population>-XYZ.out (or .csv) where:
-- <type> will be Births, IB, R or R-Lambda
-- <population> is the name of the population you entered earlier
+Output files will be named in the form [type]-[population]-XYZ.out (or .csv) where:
+- [type] will be Births, IB, R or R-Lambda
+- [population] is the name of the population you entered earlier
 - X, Y and Z are, respectively, the levels of maternal mortality, sibling competition and juvenile help (N, L, M or H)
 
 'Births' contains the set of optimal birth decisions for each age and family structure
