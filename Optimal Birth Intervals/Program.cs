@@ -395,10 +395,6 @@ namespace Optimal_Birth_Intervals
                     returnedValue = MortalityParam.Low;
                     break;
 
-                case "J":
-                    returnedValue = MortalityParam.Jshaped;
-                    break;
-
                 default:
                     returnedValue = MortalityParam.None;
                     break;
@@ -414,7 +410,6 @@ namespace Optimal_Birth_Intervals
         None,
         High,
         Medium,
-        Low,
-        Jshaped
+        Low
     }
 }

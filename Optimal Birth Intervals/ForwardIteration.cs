@@ -124,6 +124,20 @@ namespace Optimal_Birth_Intervals
             if (births[arrayIndex][familyIndex] == true)
                 giveBirth = true;
 
+            // probabilistic age at first birth (teenage sub-fecundity)?
+            if (Properties.Settings.Default.ProbabilisticAFB && motherAge < 20) // only if mother is younger than 20
+            {
+                double pBirth = TeenageSubfecundityProbability(motherAge);
+
+                Random rnd = new Random();
+                if (rnd.NextDouble() >= pBirth)
+                {
+                    // do not give birth this year
+                    giveBirth = false;
+                    births[arrayIndex][familyIndex] = false;
+                }
+            }
+
             // calculate fitness based on mother's age, current family structure and optimal birth decision
             FwdCalcF(motherAge, family[familyIndex].ToArray(), familyIndex, arrayIndex, giveBirth);
         }

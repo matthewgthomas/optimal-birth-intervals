@@ -12,12 +12,12 @@ namespace Optimal_Birth_Intervals
     {
         #region Constants
         int numFamilies = 987;
-        const int motherAgeMax = 91;
-        int motherArrayMax = 76;
-        const int maxTback = 75;
+        int motherAgeMax = 91;
+        int motherArrayMax = 76;  // calculated from motherAgeMax
+        //const int maxTback = 75;  // not needed -- model runs to convergence
         const int maxTforward = 150;
 
-        int ageAtMaturity;
+        int ageAtMaturity;  // this is calculated by importFamiliesFromString() from the family structures in families.txt
 
         const string appWorkingDir = @"WorkingDir";
         #endregion
@@ -92,13 +92,16 @@ namespace Optimal_Birth_Intervals
         // Read in family structures and initialise fitness/decision arrays
         public BirthIntervals()
         {
+            // start by importing family structures and calculating a lookup table for them
             importFamiliesFromString();
             CalculateLookupTable();
 
             // before initialising arrays, set some global variables
+            motherAgeMax = Properties.Settings.Default.MaxAge + 1;  // add 1 because we don't want death state in output array
             numFamilies = family.Count;
             motherArrayMax = motherAgeMax - ageAtMaturity;
 
+            // set up fitness and strategy arrays
             InitialiseArrays();
             InitialisePopulationGrowthRate();
 
@@ -398,21 +401,26 @@ namespace Optimal_Birth_Intervals
                     // only those 10 and over can help
                     if (age >= 10)
                     {
+                        double helpModifier = 5.0;  // or 10.0 (originally)
+
                         switch (siblingHelp)
                         {
                             case MortalityParam.None:
                                 break;
 
                             case MortalityParam.Low:
-                                weight -= 0.1;
+                                //weight -= 0.1;
+                                weight += (double)(.5 - (age * .03333)) * -1.0;
                                 break;
 
                             case MortalityParam.Medium:
-                                weight += (double)(-.5 * (age - 10.0) / 10.0);
+                                //weight += (double)(-.5 * (age - 10.0) / helpModifier);
+                                weight += (double)(1 - (age * .06666)) * -1.0;
                                 break;
 
                             case MortalityParam.High:
-                                weight += (double)(-1.0 * (age - 10.0) / 10.0);
+                                //weight += (double)(-1.0 * (age - 10.0) / helpModifier);
+                                weight += (double)(1 - (age * 0.0357)) * -1.0;
                                 break;
                         }
                     }
@@ -445,52 +453,9 @@ namespace Optimal_Birth_Intervals
             /* Maternal mortality in childbirth
              * These parameters get varied for no increase with age, or a low, medium and high age-related increase as shown in Figure 1b
              */
-            double alphaBirth = 0.0, betaBirth = 0.0, gammaBirth = 0.0;
-
-            switch (childbirthMortality)
+            if (giveBirth && childbirthMortality != MortalityParam.None)
             {
-                case MortalityParam.None:
-                    alphaBirth = 0.0;
-                    betaBirth = 0.0;
-                    gammaBirth = 0.0;
-                    break;
-
-                case MortalityParam.Low:
-                    // values from Blanc et al. 2013
-                    alphaBirth = 1.424218e-05;
-                    betaBirth = 5.415419e-04;
-                    gammaBirth = 7.492639e-03;
-                    break;
-
-                case MortalityParam.Medium:
-                    // values from Blanc et al. 2013
-                    alphaBirth = 1.394538e-05;
-                    betaBirth = 5.268179e-04;
-                    gammaBirth = 8.448535e-03;
-                    break;
-
-                case MortalityParam.High:
-                    // values from Blanc et al. 2013
-                    alphaBirth = 1.236674e-05;
-                    betaBirth = 4.478437e-04;
-                    gammaBirth = 9.056053e-03;
-                    break;
-            }
-
-            /* MORALITY RISK DUE TO CHILDBIRTH
-             */
-            double initialRiskChildbirthMortality = 0.0;
-
-            if (giveBirth)
-            {
-                if (childbirthMortality == MortalityParam.None)
-                {
-                    muBirth = 0.0;
-                }
-
-                // Maternal mortality ratios from Blanc et al. 2013 (http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0059864)
-                // a * (age^2) - b * age + c
-                muBirth = (alphaBirth * Math.Pow(motherAge, 2)) - (betaBirth * motherAge) + gammaBirth;
+                muBirth = calcMaternalMortality(motherAge);
             }
 
             /* calculate survival
@@ -501,6 +466,73 @@ namespace Optimal_Birth_Intervals
 
             // and return survival
             return memoSurvival;
+        }
+
+        // returns the mother's probability of dying during childbirth given her age
+        private double calcMaternalMortality(int motherAge)
+        {
+            double muBirth = 0.0;
+            double alphaBirth = 0.0, betaBirth = 0.0, gammaBirth = 0.0;
+
+            // calculate maternal morality
+            // J-shaped maternal mortality ratios from Blanc et al. (2013)
+            // (http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0059864)
+            if (Properties.Settings.Default.MaternalMortalityFunc == "J")
+            {
+                // what level of maternal mortality?
+                switch (childbirthMortality)
+                {
+                    case MortalityParam.Low:
+                        alphaBirth = 1.424218e-05;
+                        betaBirth = 5.415419e-04;
+                        gammaBirth = 7.492639e-03;
+                        break;
+
+                    case MortalityParam.Medium:
+                        alphaBirth = 1.394538e-05;
+                        betaBirth = 5.268179e-04;
+                        gammaBirth = 8.448535e-03;
+                        break;
+
+                    case MortalityParam.High:
+                        alphaBirth = 1.236674e-05;
+                        betaBirth = 4.478437e-04;
+                        gammaBirth = 9.056053e-03;
+                        break;
+                }
+
+                // a * (age^2) - b * age + c
+                muBirth = (alphaBirth * Math.Pow(motherAge, 2)) - (betaBirth * motherAge) + gammaBirth;
+            }
+
+            // Exponential maternal mortality fitted from Grimes (1994)
+            // as used in from Shanley et al. (2007)
+            else if (Properties.Settings.Default.MaternalMortalityFunc == "E")
+            {
+                // what level of maternal mortality?
+                switch (childbirthMortality)
+                {
+                    case MortalityParam.Low:
+                        alphaBirth = 0.002928;
+                        betaBirth = 0.1;
+                        break;
+
+                    case MortalityParam.Medium:
+                        alphaBirth = 0.000485;
+                        betaBirth = 0.181221;
+                        break;
+
+                    case MortalityParam.High:
+                        alphaBirth = 1e-6;
+                        betaBirth = 0.5;
+                        break;
+                }
+
+                // (a * Exp(b * (age - ageAtMaturity))) + (silerA2 - a)
+                muBirth = (alphaBirth * Math.Exp(betaBirth * (motherAge - ageAtMaturity))) + (silerA2 - alphaBirth);
+            }
+
+            return muBirth;
         }
         #endregion
 
@@ -555,6 +587,41 @@ namespace Optimal_Birth_Intervals
                     }
                 }
             }
+        }
+
+        public double TeenageSubfecundityProbability(int motherAge)
+        {
+            double pBirth = 1;
+
+            // assign probabilities of giving birth
+            // linear from 0.25 at age 15 to 1.0 at age 20 -- y = 0.25 + 0.15.x
+            switch (motherAge)
+            {
+                case 15:
+                    pBirth = 0.25;
+                    break;
+
+                case 16:
+                    pBirth = 0.4; //0.5;
+                    break;
+
+                case 17:
+                    pBirth = 0.55; //0.75;
+                    break;
+
+                case 18:
+                    pBirth = 0.7;
+                    break;
+
+                case 19:
+                    pBirth = 0.85;
+                    break;
+
+                default:
+                    break;
+            }
+
+            return pBirth;
         }
         #endregion
 
