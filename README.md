@@ -1,6 +1,8 @@
 optimal-birth-intervals
 =======================
 
+[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.15663.svg)](http://dx.doi.org/10.5281/zenodo.15663)
+
 The optimal birth intervals model is written in C#. To run the code, first download Visual Studio Express from http://go.microsoft.com/fwlink/?linkid=244366
 
 Running the model
